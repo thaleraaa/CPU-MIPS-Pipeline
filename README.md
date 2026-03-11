@@ -5,7 +5,7 @@ Implementação parcial de uma CPU RISC baseada em MIPS com pipeline de 4 estág
 | Instrução | Formato | Opcode       | Status      |
 |-----------|---------|--------------|-------------|
 | ADD       | R       | 20, funct=32 | ✅ Concluído |
-| SUB       | R       | 20, funct=34 | ⏳ Pendente  |
+| SUB       | R       | 20, funct=34 | ✅ Pendente  |
 | MUL       | R       | 20, funct=50 | ⏳ Pendente  |
 | AND       | R       | 20, funct=36 | ⏳ Pendente  |
 | OR        | R       | 20, funct=37 | ⏳ Pendente  |
