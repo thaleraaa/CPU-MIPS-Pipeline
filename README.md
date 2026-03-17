@@ -2,8 +2,6 @@
 
 Implementação de uma CPU RISC baseada em MIPS com pipeline em Verilog HDL para FPGA Cyclone IV GX.
 
-> **Trabalho II — Arquitetura RISC em FPGA**  
-> Disciplina de Arquitetura de Computadores  
 > Família FPGA: Cyclone IV GX
 
 ---
@@ -17,6 +15,8 @@ module CPU #(parameter GRUPO = 14) ( ... );
 ```
 
 Todos os submódulos recebem `GRUPO` via instanciação `#(.GRUPO(GRUPO))` — não há nenhum valor fixo espalhado pelo código.
+
+---
 
 ## Requisitos do Trabalho — Checklist
 
@@ -33,8 +33,8 @@ Todos os submódulos recebem `GRUPO` via instanciação `#(.GRUPO(GRUPO))` — n
 | PC aponta para endereço inicial no Reset | ✅ |
 | Simulação RTL funcionando | ✅ |
 | FPGA família Cyclone IV GX | ✅ |
-| Simulação Gate Level | ⏳ Pendente |
-| Multiplicador com CLK_MUL separado (via PLL) | ⏳ Pendente |
+| Simulação Gate Level | ❌ Não funcional (timeout — ver notas) |
+| Multiplicador com CLK_MUL separado (via PLL) | ✅ |
 | ADDRDecoding — seleção memória interna/externa (dados) | ✅ |
 | ADDRDecoding_Prog — seleção memória interna/externa (programa) | ✅ |
 
@@ -65,6 +65,8 @@ Pipeline de 4 estágios efetivos — as memórias síncronas BRAM da Altera abso
 IF/ID → ID/EX → EX/MEM → MEM/WB
 ```
 
+---
+
 ## Programa de Teste
 
 O programa implementa a expressão exigida pelo roteiro:
@@ -87,16 +89,6 @@ Duas versões implementadas conforme o roteiro:
 | r13 | 255 (0x00FF) | Constante multiplicadora |
 | r10 | 496 | Soma de mem[0..31] = 0+1+…+31 |
 | r20 | 126480 | 496 × 255 |
-
----
-
-## Hazards
-
-| Tipo | Solução adotada |
-|------|-----------------|
-| Data hazard | NOPs (bubbles) inseridos pelo programador |
-| Branch hazard (BNE) | 2 delay slots com NOP |
-| Control hazard (JMP) | Tratado no PC, sem pipeline flush |
 
 ---
 
@@ -124,10 +116,17 @@ Duas versões implementadas conforme o roteiro:
 
 ---
 
-## Pendências
+## Resultados TimeQuest (Fast 1200mV −40°C, EP4CGX150DF31I7AD)
 
-- [ ] Multiplicador com `CLK_MUL` separado via bloco IP `ALTPLL` (requerido pelo roteiro)
-- [ ] Simulação Gate Level com timing respeitado
-- [ ] Responder questões a–g no módulo top (latência, throughput, frequências, metaestabilidade)
+| Clock | Fmax |
+|-------|------|
+| CLK_SYS — pipeline (clk[0]) | 78.55 MHz |
+| Multiplicador interno | 332.67 MHz |
+| CLK_MUL (clk[1]) | 376.51 MHz |
 
+---
+
+## Nota — Simulação Gate Level
+
+A simulação gate-level com SDF não produziu resultados válidos.
 ---
