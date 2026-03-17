@@ -1,81 +1,133 @@
 # CPU-MIPS-Pipeline
+
 Implementação de uma CPU RISC baseada em MIPS com pipeline em Verilog HDL para FPGA Cyclone IV GX.
 
-## Status Atual
-| Instrução | Formato | Opcode (grupo 0) | Status       |
-|-----------|---------|------------------|--------------|
-| ADD       | R       | 10, funct=32     | ✅ Concluído |
-| SUB       | R       | 10, funct=34     | ✅ Concluído |
-| MUL       | R       | 10, funct=50     | ✅ Concluído |
-| AND       | R       | 10, funct=36     | ✅ Concluído |
-| OR        | R       | 10, funct=37     | ✅ Concluído |
-| JMP       | J       | 2                | ✅ Concluído |
-| LW        | I       | 32               | ✅ Concluído |
-| SW        | I       | 33               | ✅ Concluído |
-| BNE       | I       | 34               | ✅ Concluído |
-| ADDI      | I       | 35               | ✅ Concluído |
-| ORI       | I       | 36               | ✅ Concluído |
+> **Trabalho II — Arquitetura RISC em FPGA**  
+> Disciplina de Arquitetura de Computadores  
+> Família FPGA: Cyclone IV GX
 
-## O que funciona
-- Estrutura completa do pipeline (IF, ID, EX, WB) — 4 estágios efetivos devido às memórias síncronas da FPGA absorverem um estágio
-- Todas as instruções tipo R (ADD, SUB, MUL, AND, OR) com WriteBack no RegisterFile
-- Instrução JMP com desvio incondicional validado
-- Instruções tipo I imediatas (ADDI, ORI) com SignExtend e MUX no estágio EX
-- Instrução BNE com desvio condicional validado (tomado e não tomado)
-- Instruções de memória LW e SW com DataMemory síncrona (altsyncram)
-- Branch hazard resolvido por NOPs (2 delay slots)
-- Data hazard resolvido por NOPs (bubbles)
-- NOP tratado automaticamente pelo módulo Control (opcode 0)
-- Loop com acumulador validado: soma de mem[0..31] = 496, MUL 496×255 = 126480
-- Apenas memória interna (grupo 0, sem acesso a memória externa)
+---
+
+## Configuração do Grupo
+
+O projeto é **totalmente parametrizável por grupo**. Basta alterar o `parameter GRUPO` no módulo top `CPU.v` e todos os endereços, opcodes e configurações se ajustam automaticamente:
+
+```verilog
+module CPU #(parameter GRUPO = 14) ( ... );
+```
+
+Todos os submódulos recebem `GRUPO` via instanciação `#(.GRUPO(GRUPO))` — não há nenhum valor fixo espalhado pelo código.
+
+## Requisitos do Trabalho — Checklist
+
+### Requisitos obrigatórios
+
+| Requisito | Status |
+|-----------|--------|
+| Word de 32 bits Big Endian | ✅ |
+| Pipeline implementado | ✅ |
+| Instruções de 4 bytes | ✅ |
+| 32 registradores (r0 hard-wired em 0) | ✅ |
+| Memória de programa: 1kWord a partir de `GRUPO × 0x120` | ✅ |
+| Memória de dados: 1kWord a partir de `GRUPO × 0x125` | ✅ |
+| PC aponta para endereço inicial no Reset | ✅ |
+| Simulação RTL funcionando | ✅ |
+| FPGA família Cyclone IV GX | ✅ |
+| Simulação Gate Level | ⏳ Pendente |
+| Multiplicador com CLK_MUL separado (via PLL) | ⏳ Pendente |
+| ADDRDecoding — seleção memória interna/externa (dados) | ✅ |
+| ADDRDecoding_Prog — seleção memória interna/externa (programa) | ✅ |
+
+### ISA implementado
+
+| Instrução | Formato | Opcode (grupo 14) | Status |
+|-----------|---------|-------------------|--------|
+| ADD | R | 24, funct=32 | ✅ Concluído |
+| SUB | R | 24, funct=34 | ✅ Concluído |
+| MUL | R | 24, funct=50 | ✅ Concluído |
+| AND | R | 24, funct=36 | ✅ Concluído |
+| OR  | R | 24, funct=37 | ✅ Concluído |
+| JMP | J | 2 | ✅ Concluído |
+| LW  | I | 46 | ✅ Concluído |
+| SW  | I | 47 | ✅ Concluído |
+| BNE | I | 48 | ✅ Concluído |
+| ADDI | I | 49 | ✅ Concluído |
+| ORI  | I | 50 | ✅ Concluído |
+| NOP  | — | opcode 0 | ✅ Concluído |
+
+---
 
 ## Arquitetura
-Pipeline de 4 estágios efetivos (memórias síncronas absorvem estágio de busca):
-```
-IF/ID → ID/EX → EX/MEM → WB
-```
 
-### Módulos Implementados
-- `PC` — Program Counter com suporte a JMP e BNE, endereço base 0x0 (grupo 0)
-- `InstructionMemory` — ROM síncrona altsyncram, inicializada via Code.hex, indexada por PC[11:2]
-- `Control` — decodificação de instruções R, I e J; NOP (opcode 0) gera sinais neutros
-- `RegisterFile` — banco de 32 registradores síncronos, r0 hard-wired em 0
-- `ALU` — operações ADD, SUB, MUL, AND, OR com zeroFlag
-- `Extend` — sign extension de 16 para 32 bits
-- `DataMemory` — RAM síncrona altsyncram, inicializada via Data.hex (mem[0..31] = 0..31)
-- `IMM` — registrador de pipeline para imediato extendido e flag isIMM
-- `A, B` — registradores de estágio ID/EX
-- `CTRL, CTRL2` — registradores de controle propagando sinais pelo pipeline
-- `D` — registrador de estágio EX/WB
+Pipeline de 4 estágios efetivos — as memórias síncronas BRAM da Altera absorvem o estágio de busca, conforme figura 1b do roteiro:
 
-## Resultado do Programa de Teste
 ```
-r30  = 32   (tamanho do vetor)         ✅
-r13  = 255  (constante multiplicadora) ✅
-r10  = 496  (soma mem[0..31])          ✅
-r20  = 126480 (496 × 255)             ✅
+IF/ID → ID/EX → EX/MEM → MEM/WB
 ```
 
-## Limitações Conhecidas
-- Multiplicador com clock separado (CLK_MUL via PLL) pendente
-- ADDRDecoding e ADDRDecoding_Prog pendentes (não necessários para grupo 0 — sem acesso a memória externa)
-- Simulação Gate Level pendente
+## Programa de Teste
 
-## Testado
-- `ADD r3 = r1+r2 (10+5=15)` ✅
-- `ADD r6 = r3+r1 (15+10=25) com NOPs` ✅
-- `SUB r4 = r1-r2 (10-5=5)` ✅
-- `MUL r5 = r1*r2 (10*5=50)` ✅
-- `AND r7 = r1&r2 (10&5=0)` ✅
-- `OR  r8 = r1|r2 (10|5=15)` ✅
-- `JMP → destino correto validado` ✅
-- `ADDI r10 = r1+7 (10+7=17)` ✅
-- `ADDI r11 = r2+(-1) (5-1=4) com SignExt negativo` ✅
-- `ORI  r12 = r1|6 (10|6=14)` ✅
-- `ORI  r13 = r2|0xFFF0 com SignExt` ✅
-- `BNE tomado: r1!=r2 → desvia` ✅
-- `BNE não tomado: r1==r1 → sequencial` ✅
-- `SW r1→mem[0]=10, SW r2→mem[4]=5` ✅
-- `LW r18←mem[0]=10, LW r19←mem[4]=5` ✅
-- `Loop sem bubble: soma mem[0..31] = 496` ✅
-- `Loop com bubble: soma 496×255 = 126480` ✅
+O programa implementa a expressão exigida pelo roteiro:
+
+```
+MemDados[última posição] ← (Σ Mem[i + GRUPO×0x0125], i=0..31) × 255
+```
+
+Duas versões implementadas conforme o roteiro:
+
+**Versão com data hazard** — sem NOPs, serve para evidenciar o problema.
+
+**Versão com bubbles** — NOPs inseridos manualmente para resolver data hazard, conforme exigido.
+
+### Resultado validado
+
+| Registrador | Valor | Descrição |
+|-------------|-------|-----------|
+| r30 | 32 | Tamanho do vetor |
+| r13 | 255 (0x00FF) | Constante multiplicadora |
+| r10 | 496 | Soma de mem[0..31] = 0+1+…+31 |
+| r20 | 126480 | 496 × 255 |
+
+---
+
+## Hazards
+
+| Tipo | Solução adotada |
+|------|-----------------|
+| Data hazard | NOPs (bubbles) inseridos pelo programador |
+| Branch hazard (BNE) | 2 delay slots com NOP |
+| Control hazard (JMP) | Tratado no PC, sem pipeline flush |
+
+---
+
+## Testes Unitários
+
+| Teste | Resultado |
+|-------|-----------|
+| ADD r3 = r1+r2 (10+5=15) | ✅ |
+| ADD r6 = r3+r1 com NOPs (15+10=25) | ✅ |
+| SUB r4 = r1-r2 (10-5=5) | ✅ |
+| MUL r5 = r1*r2 (10*5=50) | ✅ |
+| AND r7 = r1&r2 (10&5=0) | ✅ |
+| OR  r8 = r1\|r2 (10\|5=15) | ✅ |
+| JMP — destino correto | ✅ |
+| ADDI r10 = r1+7 (10+7=17) | ✅ |
+| ADDI r11 = r2+(-1) com SignExt negativo (5-1=4) | ✅ |
+| ORI  r12 = r1\|6 (10\|6=14) | ✅ |
+| ORI  r13 = r2\|0xFFF0 com SignExt | ✅ |
+| BNE tomado: r1≠r2 → desvia | ✅ |
+| BNE não tomado: r1==r1 → sequencial | ✅ |
+| SW r1→mem[0]=10, SW r2→mem[4]=5 | ✅ |
+| LW r18←mem[0]=10, LW r19←mem[4]=5 | ✅ |
+| Loop sem bubble: soma mem[0..31] = 496 | ✅ |
+| Loop com bubble: 496×255 = 126480 | ✅ |
+
+---
+
+## Pendências
+
+- [ ] Multiplicador com `CLK_MUL` separado via bloco IP `ALTPLL` (requerido pelo roteiro)
+- [ ] Simulação Gate Level com timing respeitado
+- [ ] Responder questões a–g no módulo top (latência, throughput, frequências, metaestabilidade)
+
+---
