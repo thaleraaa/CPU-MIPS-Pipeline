@@ -2,6 +2,8 @@
 
 Implementação de uma CPU RISC baseada em MIPS com pipeline em Verilog HDL para FPGA Cyclone IV GX.
 
+📄 [Relatório do Projeto](./relatorio.pdf) | 📦 [Código-fonte](./CPU.RAR)
+
 > Família FPGA: Cyclone IV GX
 
 ---
