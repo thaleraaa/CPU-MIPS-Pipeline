@@ -58,13 +58,10 @@ Todos os submódulos recebem `GRUPO` via instanciação `#(.GRUPO(GRUPO))` — n
 ---
 
 ## Arquitetura
-
-Pipeline de 4 estágios efetivos — as memórias síncronas BRAM da Altera absorvem o estágio de busca, conforme figura 1b do roteiro:
-
+Pipeline de 5 estágios (IF, ID, EX, MEM, WB) com 4 registradores de fronteira explícitos. As memórias síncronas BRAM da Altera absorvem o estágio IF — cujo registrador de saída serve como IF/ID —, conforme figura 1b do roteiro:
 ```
 IF/ID → ID/EX → EX/MEM → MEM/WB
 ```
-
 ---
 
 ## Programa de Teste
